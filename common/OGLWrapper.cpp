@@ -16,12 +16,12 @@
 namespace gl {
 using std::string;
 
-Program::Program() {}
+Program::Program() noexcept {}
 
-Program::Program(Program && rhs) {
+Program::Program(Program && rhs) noexcept {
 	std::swap(data, rhs.data);
 }
-Program& Program::operator=(Program&& rhs) {
+Program& Program::operator=(Program&& rhs) noexcept {
 	std::swap(data, rhs.data);
 	return *this;
 }

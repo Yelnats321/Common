@@ -11,13 +11,13 @@ class OGLWrapper{
 protected:
 	GLuint data = 0;
 public:
-	LIBRARY_API OGLWrapper() {}
+	LIBRARY_API OGLWrapper() noexcept {}
 	LIBRARY_API OGLWrapper(const OGLWrapper&) = delete;
-	LIBRARY_API OGLWrapper& operator=(const OGLWrapper&) = delete;
-	LIBRARY_API OGLWrapper(OGLWrapper && rhs) {
+	LIBRARY_API OGLWrapper(OGLWrapper && rhs) noexcept {
 		std::swap(data, rhs.data);
 	}
-	LIBRARY_API OGLWrapper& operator=(OGLWrapper&& rhs) {
+	LIBRARY_API OGLWrapper& operator=(const OGLWrapper&) = delete;
+	LIBRARY_API OGLWrapper& operator=(OGLWrapper&& rhs) noexcept {
 		std::swap(data, rhs.data);
 		return *this;
 	}
@@ -43,11 +43,11 @@ public:
 class Program{
 	GLuint data = 0;
 public:
-	LIBRARY_API Program();
-	LIBRARY_API Program(Program &&);
+	LIBRARY_API Program() noexcept;
+	LIBRARY_API Program(Program &&) noexcept;
 	LIBRARY_API Program(const Program&) = delete;
 	LIBRARY_API Program& operator=(const Program&) = delete;
-	LIBRARY_API Program& operator=(Program&& rhs);
+	LIBRARY_API Program& operator=(Program&& rhs) noexcept;
 	LIBRARY_API ~Program();
 	LIBRARY_API void gen(std::string v, std::string f, std::string g = "");
 	LIBRARY_API inline operator GLuint() const{ return data; }
