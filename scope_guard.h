@@ -5,26 +5,30 @@
 
 template <typename Func>
 class scope_guard_t {
-    Func func;
-    bool released = false;
 public:
-    scope_guard_t(Func func): func(std::move(func)) {}
-    scope_guard_t(scope_guard_t&& other)
-        : func(std::move(other.func)) {
+    scope_guard_t(Func func) : func(std::move(func)) {}
+    scope_guard_t(scope_guard_t&& other) : func(std::move(other.func)) {
         released = std::exchange(other.released, true);
     }
-    scope_guard_t & operator=(scope_guard_t&& other) {
+    scope_guard_t& operator=(scope_guard_t&& other) {
         func = std::move(other.func);
         released = std::exchange(other.released, true);
     }
     ~scope_guard_t() {
-        if (!released) func();
+        if (!released)
+            func();
     }
 
-    void release() { released = true; }
+    void release() {
+        released = true;
+    }
+
+private:
+    Func func;
+    bool released = false;
 };
 
 template <typename Func>
-auto scope_guard(Func &&func) {
+auto scope_guard(Func&& func) {
     return scope_guard_t<std::decay_t<Func>>(std::forward<Func>(func));
 }
