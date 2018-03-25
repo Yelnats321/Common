@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 
 #include <array>
+#include <fstream>
 #include <initializer_list>
 #include <iostream>
 #include <sstream>
@@ -67,7 +68,7 @@ namespace detail {
             glTextureParameterfv(this->resource[idx], pname, param);
         }
 
-        void bind(GLuint first = 0) const {
+        void bind(GLuint first) const {
             glBindTextures(first, Count, this->resource.data());
         }
     };
@@ -191,8 +192,9 @@ public:
             glGetShaderiv(this->resource[0], GL_INFO_LOG_LENGTH, &logSize);
             std::vector<GLchar> log(logSize);
             glGetShaderInfoLog(this->resource[0], logSize, nullptr, log.data());
-            std::cout << "***Shader compile error\n";
+            std::cerr << "***Shader compile error\n";
             std::cerr << log.data() << "\n";
+            throw "";
         }
     }
 };
