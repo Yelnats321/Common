@@ -10,7 +10,19 @@
 #include <string>
 #include <vector>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 namespace gl {
+
+template <typename T>
+struct layout {
+    GLuint location;
+};
+
+template <GLenum Type, size_t Count>
+class texture_array;
+
 namespace detail {
     template <size_t Count>
     class opengl_resource {
@@ -68,8 +80,8 @@ namespace detail {
             glTextureParameterfv(this->resource[idx], pname, param);
         }
 
-        void bind(GLuint first) const {
-            glBindTextures(first, Count, this->resource.data());
+        void bind(layout<texture_array<Type, Count>> loc) const {
+            glBindTextures(loc.location, Count, this->resource.data());
         }
     };
 } // namespace detail
@@ -106,6 +118,16 @@ public:
 template <GLenum Type>
 using buffer = buffer_array<Type, 1>;
 
+template <size_t count>
+using array_buffer_array = buffer_array<GL_ARRAY_BUFFER, count>;
+
+using array_buffer = buffer<GL_ARRAY_BUFFER>;
+
+template <size_t count>
+using element_buffer_array = buffer_array<GL_ELEMENT_ARRAY_BUFFER, count>;
+
+using element_buffer = buffer<GL_ELEMENT_ARRAY_BUFFER>;
+
 template <size_t Count>
 class vertex_array_array : public detail::opengl_resource<Count> {
     using base = detail::opengl_resource<Count>;
@@ -127,22 +149,25 @@ public:
     void bind(size_t idx = 0) const {
         glBindVertexArray(this->resource[idx]);
     }
-    void vertexBuffer(GLuint bindingindex, const buffer<GL_ARRAY_BUFFER>& buffer, GLintptr offset,
+    void vertexBuffer(GLuint bindingindex, const array_buffer& buffer, GLintptr offset,
                       GLsizei stride, size_t idx = 0) const {
         glVertexArrayVertexBuffer(this->resource[idx], bindingindex, buffer, offset, stride);
     }
-    void enableAttrib(GLuint index, size_t idx = 0) const {
-        glEnableVertexArrayAttrib(this->resource[idx], index);
+    template <typename T>
+    void enableAttrib(layout<T> attrib, size_t idx = 0) const {
+        glEnableVertexArrayAttrib(this->resource[idx], attrib.location);
     }
-    void attribFormat(GLuint attribindex, GLint size, GLenum type, GLboolean normalized,
+    template <typename T>
+    void attribFormat(layout<T> attrib, GLint size, GLenum type, GLboolean normalized,
                       GLuint relativeoffset, size_t idx = 0) const {
-        glVertexArrayAttribFormat(this->resource[idx], attribindex, size, type, normalized,
+        glVertexArrayAttribFormat(this->resource[idx], attrib.location, size, type, normalized,
                                   relativeoffset);
     }
-    void attribBinding(GLuint attribindex, GLuint bindingindex, size_t idx = 0) const {
-        glVertexArrayAttribBinding(this->resource[idx], attribindex, bindingindex);
+    template <typename T>
+    void attribBinding(layout<T> attrib, GLuint bindingindex, size_t idx = 0) const {
+        glVertexArrayAttribBinding(this->resource[idx], attrib.location, bindingindex);
     }
-    void elementBuffer(const buffer<GL_ELEMENT_ARRAY_BUFFER>& buffer, size_t idx = 0) const {
+    void elementBuffer(const element_buffer& buffer, size_t idx = 0) const {
         glVertexArrayElementBuffer(this->resource[idx], buffer);
     }
 };
@@ -199,6 +224,9 @@ public:
     }
 };
 
+using vertex_shader = shader<GL_VERTEX_SHADER>;
+using fragment_shader = shader<GL_FRAGMENT_SHADER>;
+
 class program : public detail::opengl_resource<1> {
     using base = detail::opengl_resource<1>;
 
@@ -230,20 +258,36 @@ public:
     void use() const {
         glUseProgram(this->resource[0]);
     }
-    void uniform1i(GLint location, GLint v0) const {
+    void uniform(layout<glm::vec3> loc, const glm::vec3& value) const {
+        glProgramUniform3fv(this->resource[0], loc.location, 1, glm::value_ptr(value));
+    }
+    void uniform(layout<glm::mat4> loc, GLboolean transpose, const glm::mat4& value) const {
+        glProgramUniformMatrix4fv(this->resource[0], loc.location, 1, transpose,
+                                  glm::value_ptr(value));
+    }
+
+    /*void uniform1i(GLint location, GLint v0) const {
         glProgramUniform1i(this->resource[0], location, v0);
-    }
-    void uniform3fv(GLint location, GLsizei count, const GLfloat* value) const {
-        glProgramUniform3fv(this->resource[0], location, count, value);
-    }
-    void uniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose,
-                          const GLfloat* value) const {
-        glProgramUniformMatrix4fv(this->resource[0], location, count, transpose, value);
+    }*/
+
+    static program fromFiles(const char* vertexShader, const char* fragmentShader) {
+        program program;
+
+        vertex_shader vert_shader;
+        vert_shader.source_from_file(vertexShader);
+        vert_shader.compile();
+
+        fragment_shader frag_shader;
+        frag_shader.source_from_file(fragmentShader);
+        frag_shader.compile();
+
+        program.attach(vert_shader, frag_shader);
+        program.link();
+        program.detach(vert_shader, frag_shader);
+
+        return program;
     }
 };
-
-template <GLenum Type, size_t Count>
-class texture_array;
 
 template <size_t Count>
 class texture_array<GL_TEXTURE_2D, Count>
@@ -270,8 +314,39 @@ public:
     }
 };
 
+template <size_t Count>
+class texture_array<GL_TEXTURE_CUBE_MAP, Count>
+    : public detail::texture_array_base<GL_TEXTURE_CUBE_MAP, Count> {
+    using base = detail::texture_array_base<GL_TEXTURE_CUBE_MAP, Count>;
+
+public:
+    texture_array() = default;
+
+    texture_array(texture_array&& other) noexcept : base(std::move(other)) {}
+    texture_array& operator=(texture_array&& other) noexcept {
+        base::operator=(std::move(other));
+        return *this;
+    }
+
+    void storage(GLsizei levels, GLenum internalformat, GLsizei width, GLsizei height,
+                 size_t idx = 0) const {
+        glTextureStorage2D(this->resource[idx], levels, internalformat, width, height);
+    }
+    void subImage(GLint level, GLint xoffset, GLint yoffset, GLint zoffset, GLsizei width,
+                  GLsizei height, GLsizei depth, GLenum format, GLenum type, const void* pixels,
+                  size_t idx = 0) const {
+        glTextureSubImage3D(this->resource[idx], level, xoffset, yoffset, zoffset, width, height,
+                            depth, format, type, pixels);
+    }
+};
+
 template <GLenum Type>
 using texture = texture_array<Type, 1>;
+
+template <size_t count>
+using texture2D_array = texture_array<GL_TEXTURE_2D, count>;
+
+using texture2D = texture<GL_TEXTURE_2D>;
 
 template <GLenum Target, size_t Count>
 class framebuffer_array : public detail::opengl_resource<Count> {
