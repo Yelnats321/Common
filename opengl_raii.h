@@ -83,6 +83,10 @@ namespace detail {
         void bind(layout<texture_array<Type, Count>> loc) const {
             glBindTextures(loc.location, Count, this->resource.data());
         }
+
+        void generateMipmap(size_t idx = 0) {
+            glGenerateTextureMipmap(this->resource[idx]);
+        }
     };
 } // namespace detail
 
@@ -257,6 +261,9 @@ public:
     }
     void use() const {
         glUseProgram(this->resource[0]);
+    }
+    void uniform(layout<float> loc, float value) const {
+        glProgramUniform1f(this->resource[0], loc.location, value);
     }
     void uniform(layout<glm::vec3> loc, const glm::vec3& value) const {
         glProgramUniform3fv(this->resource[0], loc.location, 1, glm::value_ptr(value));
