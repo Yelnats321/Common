@@ -174,6 +174,9 @@ public:
     void elementBuffer(const element_buffer& buffer, size_t idx = 0) const {
         glVertexArrayElementBuffer(this->resource[idx], buffer);
     }
+    void bindingDivisor(GLuint bindingindex, GLuint divisor, size_t idx = 0) const {
+        glVertexArrayBindingDivisor(this->resource[idx], bindingindex, divisor);
+    }
 };
 
 using vertex_array = vertex_array_array<1>;
@@ -262,6 +265,12 @@ public:
     void use() const {
         glUseProgram(this->resource[0]);
     }
+    void uniform(layout<bool> loc, bool value) const {
+        glProgramUniform1i(this->resource[0], loc.location, value);
+    }
+    void uniform(layout<int> loc, int value) const {
+        glProgramUniform1i(this->resource[0], loc.location, value);
+    }
     void uniform(layout<float> loc, float value) const {
         glProgramUniform1f(this->resource[0], loc.location, value);
     }
@@ -272,10 +281,6 @@ public:
         glProgramUniformMatrix4fv(this->resource[0], loc.location, 1, transpose,
                                   glm::value_ptr(value));
     }
-
-    /*void uniform1i(GLint location, GLint v0) const {
-        glProgramUniform1i(this->resource[0], location, v0);
-    }*/
 
     static program fromFiles(const char* vertexShader, const char* fragmentShader) {
         program program;
